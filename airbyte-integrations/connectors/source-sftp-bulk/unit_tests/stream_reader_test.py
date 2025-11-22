@@ -52,21 +52,17 @@ def test_open_file_with_windows_1252_encoding():
     superscript_two = '\u00b2'
     latin_eth = '\u00d0'
     
-    # Create sample data with Windows-1252 specific characters
     windows_1252_bytes = b"Product_ID,Price\xb2,Supplier\xd0Name\n1,29.99,TechCorp\n2,15.50,Global\xd0Supply\n"
     expected_text = f"Product_ID,Price{superscript_two},Supplier{latin_eth}Name\n1,29.99,TechCorp\n2,15.50,Global{latin_eth}Supply\n"
     
-    # Create a mock file object that behaves like SFTP file
     mock_sftp_file = MagicMock()
     mock_sftp_file.read.return_value = windows_1252_bytes
     mock_sftp_file.prefetch = MagicMock()
-    mock_sftp_file.closed = False  # Ensure file appears open  # Add prefetch method
-    
-    # Mock SFTP connection
+    mock_sftp_file.closed = False
+
     mock_sftp_connection = MagicMock()
     mock_sftp_connection.open.return_value = mock_sftp_file
     
-    # Mock SFTP client
     fake_client = MagicMock()
     fake_client.sftp_connection = mock_sftp_connection
     
@@ -84,11 +80,11 @@ def test_open_file_with_windows_1252_encoding():
         reader.config = config
         reader._sftp_client = fake_client
         
-        # Create a mock RemoteFile
+        reader.file_size = MagicMock(return_value=100)
+        
         from airbyte_cdk.sources.file_based.remote_file import RemoteFile
         remote_file = RemoteFile(uri="/test.csv", last_modified=datetime.datetime.now())
         
-        # Open file with Windows-1252 encoding
         from airbyte_cdk.sources.file_based.file_based_stream_reader import FileReadMode
         file_handle = reader.open_file(
             file=remote_file,
@@ -97,15 +93,12 @@ def test_open_file_with_windows_1252_encoding():
             logger=logger
         )
         
-        # Read the content
         content = file_handle.read()
         
-        # Verify the content was decoded correctly
         assert content == expected_text
-        assert f"Price{superscript_two}" in content        # Check superscript 2 decoded properly
-        assert f"Supplier{latin_eth}Name" in content       # Check Eth character decoded properly
+        assert f"Price{superscript_two}" in content
+        assert f"Supplier{latin_eth}Name" in content
         
-        # Verify the SFTP file was opened in binary mode
         mock_sftp_connection.open.assert_called_once_with("/test.csv", mode='rb')
 
 @patch("source_sftp_bulk.stream_reader.SourceSFTPBulkStreamReader.file_size")
